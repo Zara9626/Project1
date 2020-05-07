@@ -8,6 +8,7 @@ import java.util.HashMap;
 
 public class Restaurant extends Store {
     public HashMap<String, Collection<Pair<String, Integer>>> recipes = new HashMap<>();
+
     public Restaurant(String location, String company) {
         super(location, company);
     }
@@ -50,25 +51,42 @@ public class Restaurant extends Store {
     public Collection<Pair<String, Integer>> purchase(Collection<Pair<String, Integer>> order) {
         ArrayList<Pair<String, Integer>> purchaseList = new ArrayList<>();
 
-        for (Pair thisPair : order) {
-            String ordProduct = thisPair.left.toString();
-            Integer ordQuantity = (Integer) thisPair.right;
-            Integer invQuantity = this.supplies.get(ordProduct);
+        // cycle through every menu item requested
+        for (Pair orderItem : order) {
+            Integer recipeQty = null;
+            String orderRecipe = orderItem.left.toString();
+            Integer orderQty = (Integer) orderItem.right;
+            try {
+                // cycle through every ingredient in this menu item
+                for (Pair itemIngred : recipes.get(orderRecipe)) {
+                    String ingredName = itemIngred.left.toString();
+                    Integer ingredQty = (Integer) itemIngred.right;
+                    // figure out maximum qty to prepare with this ingredient inventory as limit
+                    Integer ingredAvail = this.supplies.get(ingredName);
+                    if (ingredAvail == null) ingredAvail = 0;
+                    if (ingredAvail != null) {
+                        Double floorCalc = Math.floor(ingredAvail / ingredQty);
+                        Integer ingredCap = floorCalc.intValue();
+                        if (recipeQty == null || ingredCap < recipeQty) recipeQty = ingredCap;
+                    }
+                }
+            } catch (NullPointerException e) { /* Recipe requested that was not on menu */ }
 
-            if (invQuantity == null) {
-                // handle requests for things not in inventory
-            } else if (invQuantity < ordQuantity ) {
-                // handle requests that cannot be covered by current inventory
-                Pair<String, Integer> thisItem = new Pair<>(ordProduct, invQuantity);
-                this.supplies.replace(ordProduct, 0);
-                purchaseList.add(thisItem);
-            } else {
-                // handle requests that can be covered by current inventory
-                Pair<String, Integer> thisItem = new Pair<>(ordProduct, ordQuantity);
-                this.supplies.replace(ordProduct, invQuantity - ordQuantity);
-                purchaseList.add(thisItem);
+            if (recipeQty == null) recipeQty = 0;
+            if (recipeQty > 0) {
+                // add menu items with sufficient ingredients to result set
+                Pair<String, Integer> itemMade = new Pair<>(orderRecipe, recipeQty);
+                purchaseList.add(itemMade);
+                // subtract ingredients used in menu items from supplies
+                for (Pair itemIngred : recipes.get(orderRecipe)) {
+                    String ingredName = itemIngred.left.toString();
+                    Integer ingredQty = ((Integer) itemIngred.right) * recipeQty;
+                    Integer ingredRemain = this.supplies.get(ingredName) - ingredQty;
+                    this.supplies.replace(ingredName, ingredRemain);
+                }
             }
         }
+
         return purchaseList;
     }
 
