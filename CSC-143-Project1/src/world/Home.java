@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 
+// this will define parameters of a residential building
+
 public class Home extends Building implements Residential {
     String occupant;
 
